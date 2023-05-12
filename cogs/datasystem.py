@@ -42,7 +42,7 @@ class DataSystem(commands.Cog):
         if id == 0:
             return
 
-        query = "SELECT 1 FROM vk_chats WHERE guild_id = :id OR channel_id = :id OR peer_id = :id"
+        query = "SELECT * FROM vk_chats WHERE guild_id = :id OR channel_id = :id OR peer_id = :id"
         values = {
             "id": id
         }
