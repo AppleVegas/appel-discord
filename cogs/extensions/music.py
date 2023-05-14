@@ -1,33 +1,23 @@
+from calendar import c
+import queue
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 import yt_dlp as youtube_dl
 import asyncio 
+import re
+from functools import partial
 
 class MusicPlayer(commands.Cog):
     def __init__(self, client: commands.Bot):
         self.client = client
         self.permission = self.client.get_cog("PermissionSystem").register_perm("manage_music")
         self.playing = {}
+        self.queued = {}
+        self.queuemax = 16
+        self.timepattern = re.compile("^(?:(?:([01]?\d|2[0-3]):)?([0-5]?\d):)?([0-5]?\d)$")
+        self.youtubepattern = re.compile("^(?:https?:\/\/)?(?:www\.)?(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))((\w|-){11})(?:\S+)?$")
 
-    async def play_music(self, guild: discord.Guild, member: discord.Member, url: str):
-        pass
-    
-    @commands.command(description="Plays music in voice channel. Usage: `play *url*`")
-    async def play(self, ctx: commands.Context, url: str):
-        videoID = "dQw4w9WgXcQ"
-        regurl = url.find("watch?v=")
-        smolurl = url.find("youtu.be/")
-        shorturl = url.find("shorts/")
-        if regurl != -1:
-            videoID = url[regurl + 8:].split("&")[0]
-        elif smolurl != -1:
-            videoID = url[smolurl + 9:].split("&")[0]
-        elif shorturl != -1:
-            videoID = url[shorturl + 7:].split("&")[0]
-        else:
-            await ctx.reply("Not a YouTube URL bruv.")
-            return
-
+    async def play_youtube(self, ctx: commands.Context, url: str, seek: str = "0", output: bool = True):
         voice = discord.utils.get(self.client.voice_clients, guild=ctx.guild)
         if voice is None:
             if not ctx.author.voice is None:
@@ -35,41 +25,133 @@ class MusicPlayer(commands.Cog):
             else:
                 channel = discord.utils.get(ctx.guild.voice_channels)
             await channel.connect(self_deaf=True)
-        else:
-            if voice.is_playing():
-                voice.stop()
-                await asyncio.sleep(0.05)
-        #file_name = "music/youtube.%s.mp3" % str(ctx.guild.id)
-        #try:
-        #    if os.path.isfile(file_name):
-        #        os.remove(file_name)
-        #except Exception as e:
-        #    raise commands.CommandInvokeError(e)
                     
         voice = discord.utils.get(self.client.voice_clients, guild=ctx.guild)
-        em6 = discord.Embed(title = "Fetching YouTube Video Info", description = f'Please wait while video info is being fetched.',color = discord.Colour.from_rgb(254,31,104))
-        downmsg = await ctx.send(embed = em6)
 
-        ffmpeg_opts = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+        if output:
+            em6 = discord.Embed(title = "Fetching YouTube Video Info", description = f'Please wait while video info is being fetched.',color = discord.Colour.from_rgb(254,31,104))
+            downmsg = await ctx.send(embed = em6)
+
+        ffmpeg_opts = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': f'-vn -ss {seek}'}
         ydl_opts = {
             'format': 'bestaudio/best',
-          #  'outtmpl': file_name[:-4],
-          #  'postprocessors': [{
-          #      'key': 'FFmpegExtractAudio',
-          #      'preferredcodec': 'mp3',
-          #      'preferredquality': '196',
-          #  }],
         }
+        
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            #ydl.download([url])
+            loop = asyncio.get_event_loop()
+            info = await loop.run_in_executor(None, partial(ydl.extract_info, url=url, download=False))
+        if output:
+            await downmsg.delete()
+
+        if voice.is_playing():
+            voice.source = discord.FFmpegPCMAudio(info["url"], **ffmpeg_opts)
+        else:
+            voice.play(discord.FFmpegPCMAudio(info["url"], **ffmpeg_opts), after=lambda e: self.after(voice, ctx.guild))
+
+        self.playing[ctx.guild.id] = {
+            "info": info,
+            "ctx": ctx
+        }
+
+        if not output: 
+            return
+
+        em1 = discord.Embed(title = "Now Listening", description = f'**{info["title"]}**\n{url}\n\nPlease use `stop` command to stop.\nUse `play` command again to change audio.\n\n*Audio provided by {ctx.author.mention}*',color = discord.Colour.from_rgb(254,31,104))
+        em1.set_thumbnail(url = f'https://img.youtube.com/vi/{info["id"]}/default.jpg')
+        await ctx.send(embed = em1)
+    
+    def after(self, voice, guild: discord.Guild):
+        self.client.loop.create_task(self.queue_next(guild))
+    
+    async def queue_next(self, guild: discord.Guild):
+        if guild.id not in self.queued:
+            return False
+
+        if not self.queued[guild.id]:
+            return False
+        
+        queued = self.queued[guild.id].pop(0)
+
+        await self.play_youtube(queued[1], queued[0])
+
+        if not self.queued[guild.id]:
+            del self.queued[guild.id]
+
+        return True
+
+
+    @commands.command(description="Plays music in voice channel. Usage: `play *url*`")
+    async def play(self, ctx: commands.Context, url: str):
+        if self.youtubepattern.match(url) is None:
+            await ctx.reply("Invalid YouTube URL!")
+            return
 
         await ctx.message.delete()
-        await downmsg.delete()
-        voice.play(discord.FFmpegPCMAudio(info["url"], **ffmpeg_opts))
-        em1 = discord.Embed(title = "Now Listening", description = f'**{info["title"]}**\n{url}\n\nPlease use `stop` command to stop.\nUse `play` command again to change video.\n\n*Video provided by {ctx.author.mention}*',color = discord.Colour.from_rgb(254,31,104))
-        em1.set_thumbnail(url = f'https://img.youtube.com/vi/{videoID}/default.jpg'.format(videoID = videoID))
+        await self.play_youtube(ctx, url)
+
+    @commands.command(description="Play next music in queue.")
+    async def next(self, ctx: commands.Context):
+        if not await self.queue_next(ctx.guild):
+            await ctx.reply("Queue is empty!")
+            return
+
+        await ctx.message.delete()
+
+    @commands.command(description="Seeks currently playing video to a timestamp. Usage: `play *url*`")
+    async def seek(self, ctx: commands.Context, timestamp: str):
+        if ctx.guild.id not in self.playing:
+            await ctx.send("Not playing anything!")
+            return
+
+        if self.timepattern.match(timestamp).group() is None:
+            await ctx.send("Invalid timestamp! Correct format: HH:MM:SS")
+            return
+
+        info = self.playing[ctx.guild.id]["info"]
+
+        await self.play_youtube(ctx, "https://youtube.com/watch?v=%s" % (info["id"]), timestamp, False)
+
+        em1 = discord.Embed(title = f"Seeking Music", description = f'**{info["title"]}**\nSeeking to `{timestamp}`',color = discord.Colour.from_rgb(254,31,104))
+        em1.set_thumbnail(url = f'https://img.youtube.com/vi/{info["id"]}/default.jpg')
         await ctx.send(embed = em1)
+
+    @commands.group(invoke_without_command=True)
+    async def queue(self, ctx: commands.Context):
+        if ctx.guild.id not in self.queued:
+            await ctx.reply("Queue is empty.")
+            return
+
+        links = '\n'.join(((str(i + 1) + ": " + self.queued[ctx.guild.id][i][0] + " by " + self.queued[ctx.guild.id][i][1].author.name) for i in range(0, len(self.queued[ctx.guild.id]))))
+
+        em1 = discord.Embed(title = f"Queue list:", description = links,color = discord.Colour.from_rgb(254,31,104))
+
+        await ctx.send(embed = em1)
+
+    @queue.command(description="Add music to queue.")
+    async def add(self, ctx: commands.Context, url: str):
+        if self.youtubepattern.match(url) is None:
+            await ctx.reply("Invalid YouTube URL!")
+            return
+        if ctx.guild.id not in self.queued:
+            self.queued[ctx.guild.id] = []
+
+        if len(self.queued[ctx.guild.id]) >= self.queuemax:
+            await ctx.reply(f"Queue limit reached!")
+            return
+
+        self.queued[ctx.guild.id].append([url, ctx])
+
+        await ctx.reply(f"Added `{url}` to queue!")
+
+        voice = discord.utils.get(self.client.voice_clients, guild=ctx.guild)
+
+        if voice is None or not voice.is_playing():
+            await self.queue_next(ctx.guild)
+
+    @queue.command(description="Clear queue.")
+    async def clear(self, ctx: commands.Context):
+        del self.queued[ctx.guild.id]
+        await ctx.reply(f"Cleared queue!")
 
     @commands.command(description="Stops playing music in voice channel and disconnects.")
     async def stop(self, ctx: commands.Context):
@@ -77,6 +159,10 @@ class MusicPlayer(commands.Cog):
         if voice is None:
             await ctx.reply("Not playing anything!")
             return
+
+        if ctx.guild.id in self.queued:
+            del self.queued[ctx.guild.id]
+
         voice.stop()
         await voice.disconnect()
         await ctx.reply("Stopped.")
@@ -87,6 +173,7 @@ class MusicPlayer(commands.Cog):
         if voice is None or not voice.is_paused():
             await ctx.reply("Not paused!")
             return
+
         voice.resume()
         await ctx.reply("Resumed.")
 
@@ -96,6 +183,7 @@ class MusicPlayer(commands.Cog):
         if voice is None:
             await ctx.reply("Not playing anything!")
             return
+
         voice.pause()
         await ctx.reply("Paused.")
 

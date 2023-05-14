@@ -85,7 +85,7 @@ class VK(commands.Cog):
     async def cog_unload(self):
         self.vk_task.cancel()
 
-    @tasks.loop(seconds=1.0)
+    @tasks.loop(seconds=5.0)
     async def vk_task(self):
         await self.bot.run_polling()
 

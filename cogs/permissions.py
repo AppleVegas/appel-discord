@@ -83,6 +83,7 @@ class PermissionSystem(commands.Cog):
     async def on_command_error(self, ctx, error):
         if isinstance(error, commands.CheckFailure):
             return
+        print(error)
         await ctx.reply(error)
 
     def get_role_by_name(self, guild: discord.Guild, role_name: str) -> discord.Role:
