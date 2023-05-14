@@ -50,8 +50,8 @@ async def load_cogs():
     cfg_cog = AppelConfig(client, cfg)
     await client.add_cog(cfg_cog)
 
-    await client.load_extension("cogs.permissions")
     await client.load_extension("cogs.datasystem")
+    await client.load_extension("cogs.permissions")
 
     cog_sys = CogSystem(client)
     await cog_sys.load_cogs()

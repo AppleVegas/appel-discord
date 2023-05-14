@@ -1,4 +1,3 @@
-from os import remove
 import discord
 from discord.ext import commands, tasks
 from vkbottle.bot import Bot, Message
@@ -10,6 +9,8 @@ import random
 class VK(commands.Cog):
     def __init__(self, client: commands.Bot):
         self.client = client
+        self.permission = self.client.get_cog("PermissionSystem").register_perm("vk")
+        self.datasystem = self.client.get_cog("DataSystem")
         self.latestmsg = None
         self.bot = Bot(client.get_cog("AppelConfig").cfg["vk_token"])
         self.bot.on.chat_message()(self.vk_on_chat_message)
@@ -36,7 +37,7 @@ class VK(commands.Cog):
         if message.peer_id in self.pending:
             return
 
-        reciever = await self.client.get_cog("DataSystem").get_vk(message.peer_id)
+        reciever = await self.datasystem.get_vk(message.peer_id)
         if reciever is None:
             await self.add_pending(message.peer_id)
             #id = (await self.bot.api.groups.get_by_id())[0].id
@@ -88,15 +89,8 @@ class VK(commands.Cog):
     async def vk_task(self):
         await self.bot.run_polling()
 
-    async def check_permission(ctx: commands.Context):
-        permission = "vk"
-        if await ctx.bot.get_cog("PermissionSystem").has_permission(ctx.guild, ctx.author, permission):
-            return True
-        else:
-            raise commands.CheckFailure(permission)
-
     async def add_vk(self, ctx: commands.Context, auth_code: int = 0):
-        reciever = await self.client.get_cog("DataSystem").get_vk(ctx.guild.id)
+        reciever = await self.datasystem.get_vk(ctx.guild.id)
         if reciever is not None:
             await ctx.reply("VK is already connected.")
             return
@@ -113,7 +107,7 @@ class VK(commands.Cog):
             if self.pending[id] == auth_code:
                 peer_id = id
 
-        await self.client.get_cog("DataSystem").save_vk(ctx.guild.id, ctx.channel.id, peer_id)
+        await self.datasystem.save_vk(ctx.guild.id, ctx.channel.id, peer_id)
         del self.pending[id]
         await self.bot.api.messages.send(chat_id=peer_id - 2000000000,message=f"Сервер {ctx.guild.name} подключен!", random_id=get_random_id())
         await ctx.reply("VK has been connected successfully.")
@@ -130,7 +124,6 @@ class VK(commands.Cog):
         await ctx.reply("VK chat connection removed.")
 
     @commands.command(description="")
-    @commands.check(check_permission)
     async def vk(self, ctx: commands.Context, mode: str = "", auth_code: int = 0):
         #modes = {
         #    "add": lambda: (await self.add_vk(ctx, auth_code) for _ in '_').__anext__(),
@@ -148,12 +141,6 @@ class VK(commands.Cog):
 
         #await self.client.get_cog("DataSystem").save_vk(ctx.guild.id, ctx.channel.id, 2000000001)
         #await self.bot.api.messages.send(user_id=161488276, message="FUCKYOU", random_id=get_random_id())
-        
-    async def cog_command_error(self, ctx, error):
-        if isinstance(error, commands.CheckFailure):
-            await ctx.reply(f"You don't have a permission `{error}`!")
-        else: 
-            await ctx.reply(error)
 
 async def setup(client):
     await client.add_cog(VK(client))

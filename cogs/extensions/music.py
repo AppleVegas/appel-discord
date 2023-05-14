@@ -1,4 +1,3 @@
-from tkinter.tix import Tree
 import discord
 from discord.ext import commands
 import yt_dlp as youtube_dl
@@ -7,20 +6,13 @@ import asyncio
 class MusicPlayer(commands.Cog):
     def __init__(self, client: commands.Bot):
         self.client = client
+        self.permission = self.client.get_cog("PermissionSystem").register_perm("manage_music")
         self.playing = {}
 
     async def play_music(self, guild: discord.Guild, member: discord.Member, url: str):
         pass
     
-    async def check_permission(ctx: commands.Context):
-        permission = "music_player"
-        if await ctx.bot.get_cog("PermissionSystem").has_permission(ctx.guild, ctx.author, permission):
-            return True
-        else:
-            raise commands.CheckFailure(permission)
-
     @commands.command(description="Plays music in voice channel. Usage: `play *url*`")
-    @commands.check(check_permission)
     async def play(self, ctx: commands.Context, url: str):
         videoID = "dQw4w9WgXcQ"
         regurl = url.find("watch?v=")
@@ -80,7 +72,6 @@ class MusicPlayer(commands.Cog):
         await ctx.send(embed = em1)
 
     @commands.command(description="Stops playing music in voice channel and disconnects.")
-    @commands.check(check_permission)
     async def stop(self, ctx: commands.Context):
         voice = discord.utils.get(self.client.voice_clients, guild=ctx.guild)
         if voice is None:
@@ -91,7 +82,6 @@ class MusicPlayer(commands.Cog):
         await ctx.reply("Stopped.")
 
     @commands.command(description="Resumes playing music in voice channel if paused.")
-    @commands.check(check_permission)
     async def resume(self, ctx: commands.Context):
         voice = discord.utils.get(self.client.voice_clients, guild=ctx.guild)
         if voice is None or not voice.is_paused():
@@ -101,7 +91,6 @@ class MusicPlayer(commands.Cog):
         await ctx.reply("Resumed.")
 
     @commands.command(description="Pauses playing music in voice channel.")
-    @commands.check(check_permission)
     async def pause(self, ctx: commands.Context):
         voice = discord.utils.get(self.client.voice_clients, guild=ctx.guild)
         if voice is None:
@@ -109,14 +98,6 @@ class MusicPlayer(commands.Cog):
             return
         voice.pause()
         await ctx.reply("Paused.")
-
-    async def cog_command_error(self, ctx, error):
-        if isinstance(error, commands.CheckFailure):
-            await ctx.reply(f"You don't have a permission `{error}`!")
-        else: 
-            await ctx.reply(error)
-        #if isinstance(error, commands.CommandInvokeError):
-        #    await ctx.reply(error)
 
 async def setup(client):
     await client.add_cog(MusicPlayer(client))
