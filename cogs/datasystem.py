@@ -67,7 +67,7 @@ class DataSystem(commands.Cog):
         if id == 0:
             return
 
-        query = "SELECT * FROM permissions WHERE guild_id = :guild_id"
+        query = "SELECT role_id, permission_hash FROM permissions WHERE guild_id = :guild_id ORDER BY role_id DESC"
         values = {
             "guild_id": guild_id
         }

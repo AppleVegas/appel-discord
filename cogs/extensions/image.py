@@ -11,7 +11,7 @@ class ImageSettings(commands.FlagConverter):
     up: str = ""
     down: str = ""
     size: float = 1
-    background: bool = True
+    bg: bool = True
 
 class Images(commands.Cog):
     def __init__(self, client: commands.Bot):
@@ -24,7 +24,7 @@ class Images(commands.Cog):
             await ctx.send("No image attached.", delete_after=2)
             return
         image = Image.open(BytesIO(await ctx.message.attachments[0].read()))
-        if not flags.background:
+        if not flags.bg:
             loop = asyncio.get_event_loop()
             image = await loop.run_in_executor(None, remove, image)
         draw = ImageDraw.Draw(image)
