@@ -32,36 +32,46 @@ class MusicPlayer(commands.Cog):
             em6 = discord.Embed(title = "Fetching YouTube Video Info", description = f'Please wait while video info is being fetched.',color = discord.Colour.from_rgb(254,31,104))
             downmsg = await ctx.send(embed = em6)
 
-        ffmpeg_opts = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': f'-vn -ss {seek}'}
+        ffmpeg_opts = {'before_options': f'-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -ss {seek}', 'options': '-vn'}
         ydl_opts = {
             'format': 'bestaudio/best',
+            'source_address': '0.0.0.0',
+            'cachedir': False
         }
-        
-        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-            loop = asyncio.get_event_loop()
-            info = await loop.run_in_executor(None, partial(ydl.extract_info, url=url, download=False))
+        try:
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                loop = asyncio.get_event_loop()
+                info = await loop.run_in_executor(None, partial(ydl.extract_info, url=url, download=False))
+        except Exception as e:
+            em1 = discord.Embed(title = "Player Error", description = "%s\n%s" % (url,e),color = discord.Colour.from_rgb(254,31,104))
+            self.client.loop.create_task(ctx.send(embed = em1))
+            await downmsg.delete()
+            await self.queue_next(ctx.guild)
+            return
+
         if output:
             await downmsg.delete()
 
         if voice.is_playing():
-            voice.source = discord.FFmpegPCMAudio(info["url"], **ffmpeg_opts)
+            voice.source = await discord.FFmpegOpusAudio.from_probe(info["url"], **ffmpeg_opts)
         else:
-            voice.play(discord.FFmpegPCMAudio(info["url"], **ffmpeg_opts), after=lambda e: self.after(voice, ctx.guild))
+            voice.play(await discord.FFmpegOpusAudio.from_probe(info["url"], **ffmpeg_opts), after=lambda e: self.after(e, ctx))
 
         self.playing[ctx.guild.id] = {
             "info": info,
             "ctx": ctx
         }
 
-        if not output: 
-            return
-
-        em1 = discord.Embed(title = "Now Listening", description = f'**{info["title"]}**\n{url}\n\nPlease use `stop` command to stop.\nUse `play` command again to change audio.\n\n*Audio provided by {ctx.author.mention}*',color = discord.Colour.from_rgb(254,31,104))
-        em1.set_thumbnail(url = f'https://img.youtube.com/vi/{info["id"]}/default.jpg')
-        await ctx.send(embed = em1)
+        if output: 
+            em1 = discord.Embed(title = "Now Listening", description = f'**{info["title"]}**\n{url}\n\nPlease use `stop` command to stop.\nUse `play` command again to change audio.\n\n*Audio provided by {ctx.author.mention}*',color = discord.Colour.from_rgb(254,31,104))
+            em1.set_thumbnail(url = f'https://img.youtube.com/vi/{info["id"]}/default.jpg')
+            await ctx.send(embed = em1)
     
-    def after(self, voice, guild: discord.Guild):
-        self.client.loop.create_task(self.queue_next(guild))
+    def after(self, e, ctx: commands.Context):
+        if e:
+            em1 = discord.Embed(title = "Player Error", description = e,color = discord.Colour.from_rgb(254,31,104))
+            self.client.loop.create_task(ctx.send(embed = em1))
+        self.client.loop.create_task(self.queue_next(ctx.guild))
     
     async def queue_next(self, guild: discord.Guild):
         if guild.id not in self.queued:

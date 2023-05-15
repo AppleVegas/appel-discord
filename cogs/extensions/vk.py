@@ -13,6 +13,7 @@ class VK(commands.Cog):
         self.datasystem = self.client.get_cog("DataSystem")
         self.latestmsg = None
         self.bot = Bot(client.get_cog("AppelConfig").cfg["vk_token"])
+        self.bot.on.private_message()(self.vk_on_private_message)
         self.bot.on.chat_message()(self.vk_on_chat_message)
         self.pending = {}
     
@@ -32,6 +33,12 @@ class VK(commands.Cog):
         '''
         self.pending[peer_id] = code
         await self.bot.api.messages.send(chat_id=peer_id - 2000000000,message=message, random_id=get_random_id())
+
+    async def vk_on_private_message(self, message: Message):
+        msg = '''
+        Пиарщики сосут хуй.
+        '''
+        await self.bot.api.messages.send(user_id=message.peer_id,message=msg, random_id=get_random_id())
 
     async def vk_on_chat_message(self, message: Message):
         if message.peer_id in self.pending:
@@ -89,6 +96,17 @@ class VK(commands.Cog):
     async def vk_task(self):
         await self.bot.run_polling()
 
+    @commands.group(invoke_without_command=True)
+    async def vk(self, ctx: commands.Context, mode: str = "", auth_code: int = 0):
+        if mode == "add":
+            await self.add_vk(ctx, auth_code)
+        elif mode == "remove":
+            await self.remove_vk(ctx)
+        else:
+            await ctx.reply("Invalid mode!")
+            return 
+
+    @vk.command(description="Connect VK to Discord.")
     async def add_vk(self, ctx: commands.Context, auth_code: int = 0):
         reciever = await self.datasystem.get_vk(ctx.guild.id)
         if reciever is not None:
@@ -112,7 +130,7 @@ class VK(commands.Cog):
         await self.bot.api.messages.send(chat_id=peer_id - 2000000000,message=f"Сервер {ctx.guild.name} подключен!", random_id=get_random_id())
         await ctx.reply("VK has been connected successfully.")
 
-
+    @vk.command(description="Disconnect VK from Discord.")
     async def remove_vk(self, ctx: commands.Context):
         reciever = await self.client.get_cog("DataSystem").get_vk(ctx.guild.id)
         if reciever is None:
@@ -123,24 +141,7 @@ class VK(commands.Cog):
         await self.bot.api.messages.send(chat_id=reciever[2] - 2000000000,message=f"Сервер {ctx.guild.name} отключен.", random_id=get_random_id())
         await ctx.reply("VK chat connection removed.")
 
-    @commands.command(description="")
-    async def vk(self, ctx: commands.Context, mode: str = "", auth_code: int = 0):
-        #modes = {
-        #    "add": lambda: (await self.add_vk(ctx, auth_code) for _ in '_').__anext__(),
-        #    "remove": lambda: (await self.remove_vk(ctx) for _ in '_').__anext__()
-        #}
-        if mode == "add":
-            await self.add_vk(ctx, auth_code)
-        elif mode == "remove":
-            await self.remove_vk(ctx)
-        else:
-            await ctx.reply("Invalid mode!")
-            return 
-
-        #modes[mode]()
-
-        #await self.client.get_cog("DataSystem").save_vk(ctx.guild.id, ctx.channel.id, 2000000001)
-        #await self.bot.api.messages.send(user_id=161488276, message="FUCKYOU", random_id=get_random_id())
+    
 
 async def setup(client):
     await client.add_cog(VK(client))

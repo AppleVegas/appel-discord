@@ -5,32 +5,32 @@ from io import BytesIO
 from PIL import Image
 from PIL import ImageFont
 from PIL import ImageDraw 
-from rembg import remove
+#from rembg import remove
 
 class ImageSettings(commands.FlagConverter):
     up: str = ""
     down: str = ""
     size: float = 1
-    bg: bool = True
+    #bg: bool = True
 
 class Images(commands.Cog):
     def __init__(self, client: commands.Bot):
         self.client = client
         self.permission = self.client.get_cog("PermissionSystem").register_perm("images")
 
-    @commands.command(description="Generate impact meme from image. Image must me attached. Usage: `meme_impact up:text down:text size:1 backround:0.`")
+    @commands.command(description="Generate impact meme from image. Image must me attached.`")
     async def meme(self, ctx: commands.Context, *, flags: ImageSettings):
         if len(ctx.message.attachments) == 0 or ctx.message.attachments[0].content_type[:5] != "image":
             await ctx.send("No image attached.", delete_after=2)
             return
         image = Image.open(BytesIO(await ctx.message.attachments[0].read()))
-        if not flags.bg:
-            loop = asyncio.get_event_loop()
-            image = await loop.run_in_executor(None, remove, image)
+        #if not flags.bg:
+        #    loop = asyncio.get_event_loop()
+        #    image = await loop.run_in_executor(None, remove, image)
         draw = ImageDraw.Draw(image)
         fontsize = int(image.height*0.1*flags.size)
         outlinesize = (fontsize*0.05)
-        font = ImageFont.truetype("/fonts/impact.ttf", fontsize)
+        font = ImageFont.truetype("fonts/impact.ttf", fontsize)
         uppertext = flags.up
         lowertext = flags.down
 

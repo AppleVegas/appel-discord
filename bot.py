@@ -52,6 +52,7 @@ async def load_cogs():
 
     await client.load_extension("cogs.datasystem")
     await client.load_extension("cogs.permissions")
+    #await client.load_extension("cogs.help")
 
     cog_sys = CogSystem(client)
     await cog_sys.load_cogs()

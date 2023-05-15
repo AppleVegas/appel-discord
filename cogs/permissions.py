@@ -73,18 +73,16 @@ class PermissionSystem(commands.Cog):
     async def check_permission(self, ctx: commands.Context):
         if not hasattr(ctx.command.cog, 'permission'):
             return True
-        if await self.has_permission(ctx.guild, ctx.author, ctx.command.cog.permission):
-            return True
-        else:
-            await ctx.reply(f"You don't have a permission `{ctx.command.cog.permission}`!")
-            return False
+        return await self.has_permission(ctx.guild, ctx.author, ctx.command.cog.permission)
     
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
         if isinstance(error, commands.CheckFailure):
+            if hasattr(ctx.command.cog, 'permission'):
+                await ctx.reply(f"You don't have a permission `{ctx.command.cog.permission}`!")
             return
         print(error)
-        await ctx.reply(error)
+        await ctx.send(error)
 
     def get_role_by_name(self, guild: discord.Guild, role_name: str) -> discord.Role:
         if role_name == "everyone":
@@ -99,7 +97,7 @@ class PermissionSystem(commands.Cog):
 
     @commands.group(invoke_without_command=True)
     async def perms(self, ctx: commands.Context):
-        await ctx.reply("Invalid subcommand! Valid ones are: add, remove, list, roles.")
+        await ctx.reply("Invalid subcommand! Valid ones are: `add`, `remove`, `list`, `roles`.")
 
     @perms.command(description="Add permission to a role.")
     async def add(self, ctx: commands.Context, role_name: str, permission: str):
