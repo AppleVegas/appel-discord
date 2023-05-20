@@ -1,11 +1,10 @@
-from dis import disco
-from math import perm
 import discord
 from discord.ext import commands
 from zlib import crc32
 
 class PermissionSystem(commands.Cog):
     def __init__(self, client: commands.Bot):
+        self.description = "Manage permissions."
         self.client = client
         self.permissions = {}
         self.hashes = {}
@@ -95,11 +94,11 @@ class PermissionSystem(commands.Cog):
         role = discord.utils.get(guild.roles, id=role_id)
         return role
 
-    @commands.group(invoke_without_command=True)
+    @commands.group(invoke_without_command=True, help = "Manage/List permissions.")
     async def perms(self, ctx: commands.Context):
         await ctx.reply("Invalid subcommand! Valid ones are: `add`, `remove`, `list`, `roles`.")
 
-    @perms.command(description="Add permission to a role.")
+    @perms.command(help = "Add permission to a role. \n\nEveryone role - 'everyone'")
     async def add(self, ctx: commands.Context, role_name: str, permission: str):
         role = self.get_role_by_name(ctx.guild, role_name)
         if role is None:
@@ -131,7 +130,7 @@ class PermissionSystem(commands.Cog):
         await self.datasystem.save_permission(ctx.guild.id, role.id, self.permissions[permission])
         await ctx.reply(f"Added permission `{permission}` to role `{role.name}`.")
 
-    @perms.command(description="Remove permission from a role.")
+    @perms.command(help = "Remove permission from a role. \n\nEveryone role - 'everyone'")
     async def remove(self, ctx: commands.Context, role_name: str, permission: str):
         role = self.get_role_by_name(ctx.guild, role_name)
         if role is None:
@@ -154,10 +153,11 @@ class PermissionSystem(commands.Cog):
         await self.datasystem.remove_permission(role.id, self.permissions[permission])
         await ctx.reply(f"Removed permission `{permission}` from role `{role.name}`.")
     
-    @perms.command(description="List of permissions.")
+    @perms.command(help = "List of permissions. \n\nRole name can me specified as second argument to list all permissions for a specific role.\nRole name can be 'all' to list permissions for all roles.")
     async def list(self, ctx: commands.Context, role_name: str = None):
         if role_name is None:
-            await ctx.reply(f"List of available permissions:\n`%s`" % ('\n'.join(self.permissions.keys())))
+            em = discord.Embed(title = "List of available permissions:", description = "`%s`" % ('\n'.join(self.permissions.keys())),color = discord.Colour.from_rgb(254,31,104))
+            await ctx.reply(embed = em)
             return
         elif role_name == "all":
             roles = ""
@@ -171,7 +171,8 @@ class PermissionSystem(commands.Cog):
                 if not role.name in roles:
                     roles = roles + "\n`" + role.name + "`:\n"
                 roles = roles + "\t`" + self.hashes[row[1]] + "`\n"
-            await ctx.reply("Permissions for `%s`:%s" % (ctx.guild.name, roles))
+            em = discord.Embed(title = "Permissions for `%s`:" % ctx.guild.name, description = roles,color = discord.Colour.from_rgb(254,31,104))
+            await ctx.reply(embed = em)
             return
 
         role = self.get_role_by_name(ctx.guild, role_name)
@@ -189,12 +190,14 @@ class PermissionSystem(commands.Cog):
         for perm in permissions:
             perms.append(self.hashes[perm[2]])
 
-        await ctx.reply("Permissions of a role `%s`:\n`%s`" % (role.name, '\n'.join(perms)))
+        em = discord.Embed(title = "Permissions of a role `%s`:" % role.name, description = "`%s`" % '\n'.join(perms),color = discord.Colour.from_rgb(254,31,104))
+        await ctx.reply(embed = em)
 
-    @perms.command(description="List of guild roles.")
+    @perms.command(help = "List of guild roles. \n\nPermission name can be specified to list all roles that have this permission.")
     async def roles(self, ctx: commands.Context, permission: str = None):
         if permission is None:
-            await ctx.reply(f"List of available roles:\n`%s`" % ('\n'.join(r.name for r in ctx.guild.roles)))
+            em = discord.Embed(title = "List of available roles:", description = "`%s`" % ('\n'.join(r.name for r in ctx.guild.roles)),color = discord.Colour.from_rgb(254,31,104))
+            await ctx.reply(embed = em)
             return
         
         if permission not in self.permissions:
@@ -204,13 +207,16 @@ class PermissionSystem(commands.Cog):
         roles = await self.datasystem.get_permission_roles(ctx.guild.id, self.permissions[permission])
         if not roles:
             await ctx.reply(f"Roles with permission to `{permission}` not found!")
+            return
         out = ""
         for role in roles:
             r = self.get_role_by_id(ctx.guild, role[0])
             if r is None:
                 continue
             out = out + r.name + "\n"
-        await ctx.reply("Roles with permission to `%s`:\n`%s`" % (permission, out))
+
+        em = discord.Embed(title = "Roles with permission to `%s`:" % permission, description = "`%s`" % out,color = discord.Colour.from_rgb(254,31,104))
+        await ctx.reply(embed = em)
 
 async def setup(client):
     await client.add_cog(PermissionSystem(client))

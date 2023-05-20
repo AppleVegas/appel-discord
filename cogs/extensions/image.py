@@ -15,10 +15,11 @@ class ImageSettings(commands.FlagConverter):
 
 class Images(commands.Cog):
     def __init__(self, client: commands.Bot):
+        self.description = "Image manipulation."
         self.client = client
         self.permission = self.client.get_cog("PermissionSystem").register_perm("images")
 
-    @commands.command(description="Generate impact meme from image. Image must me attached.`")
+    @commands.command(help="Generate impact meme from image. Image must me attached.\n\nFlags:\nup: <upper text>\ndown: <lower text>\nsize: <text size = 1.0>")
     async def meme(self, ctx: commands.Context, *, flags: ImageSettings):
         if len(ctx.message.attachments) == 0 or ctx.message.attachments[0].content_type[:5] != "image":
             await ctx.send("No image attached.", delete_after=2)

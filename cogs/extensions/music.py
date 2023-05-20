@@ -9,6 +9,7 @@ from functools import partial
 
 class MusicPlayer(commands.Cog):
     def __init__(self, client: commands.Bot):
+        self.description = "Manage music in voice chat."
         self.client = client
         self.permission = self.client.get_cog("PermissionSystem").register_perm("manage_music")
         self.playing = {}
@@ -90,7 +91,7 @@ class MusicPlayer(commands.Cog):
         return True
 
 
-    @commands.command(description="Plays music in voice channel. Usage: `play *url*`")
+    @commands.command(help="Plays music in voice channel.")
     async def play(self, ctx: commands.Context, url: str):
         if self.youtubepattern.match(url) is None:
             await ctx.reply("Invalid YouTube URL!")
@@ -99,7 +100,7 @@ class MusicPlayer(commands.Cog):
         await ctx.message.delete()
         await self.play_youtube(ctx, url)
 
-    @commands.command(description="Play next music in queue.")
+    @commands.command(help="Play next music in queue.")
     async def next(self, ctx: commands.Context):
         if not await self.queue_next(ctx.guild):
             await ctx.reply("Queue is empty!")
@@ -107,7 +108,7 @@ class MusicPlayer(commands.Cog):
 
         await ctx.message.delete()
 
-    @commands.command(description="Seeks currently playing video to a timestamp. Usage: `play *url*`")
+    @commands.command(help="Seeks currently playing song to a timestamp.\n\nExamples of timestamp:\n37 = 37 seconds\n13:37 = 13 minutes and 37 seconds\n13:37:51 = 13 hours, 37 minutes and 51 seconds")
     async def seek(self, ctx: commands.Context, timestamp: str):
         if ctx.guild.id not in self.playing:
             await ctx.send("Not playing anything!")
@@ -125,7 +126,7 @@ class MusicPlayer(commands.Cog):
         em1.set_thumbnail(url = f'https://img.youtube.com/vi/{info["id"]}/default.jpg')
         await ctx.send(embed = em1)
 
-    @commands.group(invoke_without_command=True)
+    @commands.group(invoke_without_command=True, help = "List and manage queue.")
     async def queue(self, ctx: commands.Context):
         if ctx.guild.id not in self.queued:
             await ctx.reply("Queue is empty.")
@@ -137,7 +138,7 @@ class MusicPlayer(commands.Cog):
 
         await ctx.send(embed = em1)
 
-    @queue.command(description="Add music to queue.")
+    @queue.command(help = "Add music to queue.")
     async def add(self, ctx: commands.Context, url: str):
         if self.youtubepattern.match(url) is None:
             await ctx.reply("Invalid YouTube URL!")
@@ -158,12 +159,12 @@ class MusicPlayer(commands.Cog):
         if voice is None or not voice.is_playing():
             await self.queue_next(ctx.guild)
 
-    @queue.command(description="Clear queue.")
+    @queue.command(help ="Clear queue.")
     async def clear(self, ctx: commands.Context):
         del self.queued[ctx.guild.id]
         await ctx.reply(f"Cleared queue!")
 
-    @commands.command(description="Stops playing music in voice channel and disconnects.")
+    @commands.command(help="Stops playing music in voice channel and disconnects.")
     async def stop(self, ctx: commands.Context):
         voice = discord.utils.get(self.client.voice_clients, guild=ctx.guild)
         if voice is None:
@@ -177,7 +178,7 @@ class MusicPlayer(commands.Cog):
         await voice.disconnect()
         await ctx.reply("Stopped.")
 
-    @commands.command(description="Resumes playing music in voice channel if paused.")
+    @commands.command(help="Resumes playing music in voice channel if paused.")
     async def resume(self, ctx: commands.Context):
         voice = discord.utils.get(self.client.voice_clients, guild=ctx.guild)
         if voice is None or not voice.is_paused():
@@ -187,7 +188,7 @@ class MusicPlayer(commands.Cog):
         voice.resume()
         await ctx.reply("Resumed.")
 
-    @commands.command(description="Pauses playing music in voice channel.")
+    @commands.command(help="Pauses playing music in voice channel.")
     async def pause(self, ctx: commands.Context):
         voice = discord.utils.get(self.client.voice_clients, guild=ctx.guild)
         if voice is None:

@@ -8,6 +8,7 @@ import random
 
 class VK(commands.Cog):
     def __init__(self, client: commands.Bot):
+        self.description = "Manage connection to VK chat for media resending."
         self.client = client
         self.permission = self.client.get_cog("PermissionSystem").register_perm("vk")
         self.datasystem = self.client.get_cog("DataSystem")
@@ -96,18 +97,12 @@ class VK(commands.Cog):
     async def vk_task(self):
         await self.bot.run_polling()
 
-    @commands.group(invoke_without_command=True)
-    async def vk(self, ctx: commands.Context, mode: str = "", auth_code: int = 0):
-        if mode == "add":
-            await self.add_vk(ctx, auth_code)
-        elif mode == "remove":
-            await self.remove_vk(ctx)
-        else:
-            await ctx.reply("Invalid mode!")
-            return 
+    @commands.group(invoke_without_command=True, help = "Manage VK chat connection.")
+    async def vk(self, ctx: commands.Context):
+        await ctx.reply("Invalid subcommand!")
 
-    @vk.command(description="Connect VK to Discord.")
-    async def add_vk(self, ctx: commands.Context, auth_code: int = 0):
+    @vk.command(help="Connect VK to Discord.")
+    async def add(self, ctx: commands.Context, auth_code: int = 0):
         reciever = await self.datasystem.get_vk(ctx.guild.id)
         if reciever is not None:
             await ctx.reply("VK is already connected.")
@@ -130,8 +125,8 @@ class VK(commands.Cog):
         await self.bot.api.messages.send(chat_id=peer_id - 2000000000,message=f"Сервер {ctx.guild.name} подключен!", random_id=get_random_id())
         await ctx.reply("VK has been connected successfully.")
 
-    @vk.command(description="Disconnect VK from Discord.")
-    async def remove_vk(self, ctx: commands.Context):
+    @vk.command(help="Disconnect VK from Discord.")
+    async def remove(self, ctx: commands.Context):
         reciever = await self.client.get_cog("DataSystem").get_vk(ctx.guild.id)
         if reciever is None:
             await ctx.reply("VK chat isn't connected.")

@@ -3,10 +3,11 @@ from discord.ext import commands
 
 class Chat(commands.Cog):
     def __init__(self, client: commands.Bot):
+        self.description = "Manage chat."
         self.client = client
         self.permission = self.client.get_cog("PermissionSystem").register_perm("manage_chat")
     
-    @commands.command(description="Clear chat messages. User can be specified. Usage: `clear *message_count* *user_mention*`")
+    @commands.command(help="Clear chat messages. \n\nFirst argument has to be the number of messages.\nUser can be mentioned as second argument.")
     async def clear(self, ctx: commands.Context, count: int, user: discord.Member = None):
         await ctx.message.delete()
         if user is None:

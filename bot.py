@@ -11,6 +11,7 @@ class AppelConfig(commands.Cog):
 
 class CogSystem(commands.Cog):
     def __init__(self, client: commands.Bot):
+        self.description = "Bruh."
         self.client = client
     
     async def load_cogs(self, reload: bool = False):
@@ -52,7 +53,7 @@ async def load_cogs():
 
     await client.load_extension("cogs.datasystem")
     await client.load_extension("cogs.permissions")
-    #await client.load_extension("cogs.help")
+    await client.load_extension("cogs.help")
 
     cog_sys = CogSystem(client)
     await cog_sys.load_cogs()
